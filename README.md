@@ -19,3 +19,7 @@ A sugar monad wrapping all functions use `Context` as first parameter, like cair
 ## Status check
 
 Checking the status of most Cairo objects is necessary, after creation, or a sequence of actions on it. A sugar method `with` is given for `Render`. And a method `use` is given for regular IO monad.
+
+# ALERT
+
+The library cannot be built by `stack`. Some conflicts on code generation. Still working on.
