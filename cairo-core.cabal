@@ -1,5 +1,5 @@
 name:                cairo-core
-version:             1.16.0
+version:             1.16.1
 -- synopsis:
 -- description:
 homepage:            https://github.com/magicloud/cairo-core#readme
@@ -50,6 +50,7 @@ library
   pkgconfig-depends:   cairo
   build-tools:         c2hs
   default-extensions:  LambdaCase
+  ghc-options:         -Wall -fno-warn-orphans
 
 source-repository head
   type:     git
