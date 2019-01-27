@@ -1,9 +1,12 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE LambdaCase      #-}
-import           Control.Concurrent.MVar
-import           Control.Monad
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+import           Control.Exception
+import qualified Data.ByteString.Lazy as LBS
+import           Data.Char
 import           Data.List
 import           Data.Maybe
+import           Data.Tree.NTree.TypeDefs
 import           Distribution.Simple             hiding ( Module(..) )
 import           Distribution.Simple.PreProcess
 import           Distribution.Types.BuildInfo
@@ -14,47 +17,123 @@ import           Language.Haskell.Exts.Parser
 import           Language.Haskell.Exts.Pretty
 import           Language.Haskell.Exts.SrcLoc
 import           Language.Haskell.Exts.Syntax
+import           Network.HTTP.Client
+import           Network.HTTP.Client.TLS
 import           System.Directory
 import           System.FilePath
+import           Text.XML.HXT.DOM.ShowXml
+import           Text.XML.HXT.DOM.TypeDefs
+import           Text.XML.HXT.Parser.HtmlParsec
+import           Text.XML.HXT.XPath
 
 main :: IO ()
-main = do
-  modRender' <- newEmptyMVar
-  defaultMainWithHooks simpleUserHooks
-    { hookedPreProcessors = [ ("chs", \bi lbi clbi ->
-      PreProcessor False $ \(iD, iF) (oD, oF) verbosity -> do
+main = defaultMainWithHooks simpleUserHooks
+  { hookedPreProcessors = [ ("chs", \bi lbi clbi ->
+    PreProcessor False $ \(iD, iF) (oD, oF) verbosity -> do
+      catch (do
         (runPreProcessor $ ppC2hs bi lbi clbi) (iD, iF) (oD, oF) verbosity
-        renameFile (oD </> oF) (oD </> (oF ++ ".c2hs"))
-        liftIOwrapper bi (oD </> (oF ++ ".c2hs")) (oD </> oF)
-        putStrLn ("Render: " ++ iF)
-        render bi modRender' oD (oD </> oF))
-                            , ("hs", \bi _ _ ->
-      PreProcessor False $ \(iD, iF) (oD, oF) _ -> do
-        copyFile (iD </> iF) (oD </> oF)
-        putStrLn ("Render: " ++ iF)
-        render bi modRender' oD (oD </> oF))]}
+        rmLINE (oD </> oF)
+        bindingDoc (oD </> oF)
+        c2hsWrapper bi (oD </> oF)) (\(e :: SomeException) -> do
+          print e
+          copyFile (oD </> oF) "/tmp/fuck"
+          removeFile (oD </> oF))
+      render bi oD (oD </> oF))
+                          , ("hs", \bi _ _ ->
+    PreProcessor False $ \(iD, iF) (oD, oF) _ -> do
+      copyFile (iD </> iF) (oD </> oF)
+      bindingDoc (oD </> oF)
+      render bi oD (oD </> oF))]}
 
-render :: BuildInfo
-          -> MVar (Module SrcSpanInfo) -> FilePath -> FilePath -> IO ()
-render bi mvar dir inFile = do
-  isE <- isEmptyMVar mvar
-  when isE $ do
-    doesE <- doesFileExist (dir </> "Graphics/Cairo/Render.hs")
-    let renderFile = if doesE
-                      then dir </> "Graphics/Cairo/Render.hs"
-                      else "src/Graphics/Cairo/Render.hs"
-    parseModuleFile renderFile (defaultExtensions bi) >>=
-      void . tryPutMVar mvar . fst
-  modifyMVar_ mvar $ \modRender -> do
-    r <- genRender modRender <$> parseModuleFile inFile (defaultExtensions bi)
-    writeFile (dir </> "Graphics/Cairo/Render.hs") $ prettyPrint r
-    return r
+rmLINE :: FilePath -> IO ()
+rmLINE fp = do
+  readFile fp >>=
+    writeFile (fp ++ ".fuck") . unlines . filter (\line -> not $ "{-# LINE " `isPrefixOf` line && "\" #-}" `isSuffixOf` line) . lines
+  renameFile (fp ++ ".fuck") fp
 
-liftIOwrapper :: BuildInfo -> FilePath -> FilePath -> IO ()
-liftIOwrapper bi iF oF = do
-  m <- parseModuleFile iF (defaultExtensions bi)
-  let lifted = liftIO m
-  writeFile oF $ prettyPrint $ refineExports lifted
+bindingDoc :: FilePath -> IO ()
+bindingDoc fp = readFile fp >>=
+  mapM (\line' -> if "-- λ http" `isPrefixOf` line'
+    then do
+      doc <- mkDoc $ drop 5 line'
+      return $ "{- |" ++ doc ++ "-}"
+    else case seqPos "λ http" line' of
+      Nothing -> return line'
+      Just i -> (++) (take i line') <$> mkDoc (drop (i + 2) line')) . lines >>=
+  writeFile fp . unlines
+
+seqPos :: Eq a => [a] -> [a] -> Maybe Int
+seqPos x xs =
+  let xs' = filter (isPrefixOf x) $ tails xs
+  in if not $ null xs'
+    then Just $ length xs - length (head xs')
+    else Nothing
+
+mkDoc :: String -> IO String
+mkDoc line = map (\case
+  '\160' -> ' '
+  x -> x) <$> case '#' `elemIndex` line of
+  Just i -> do
+    let url = take i line
+        archor = drop (i + 1) line
+    xshow . getXPath ("string(//a[@name='" ++ archor ++ "']/..)") <$> cache url
+  Nothing -> case ' ' `elemIndex` line of
+    Just i -> do
+      let url = take i line
+          xpath = drop (i + 1) line
+      xshow . getXPath xpath <$> cache url
+    Nothing -> error line
+
+cache :: String -> IO (NTree XNode)
+cache url = do
+  tmpD <- getTemporaryDirectory
+  let pageName = tmpD </> map (\x -> if isAlphaNum x
+                  then x
+                  else '_') url
+  doesFileExist pageName >>= \case
+    True -> return ()
+    False -> do
+      req <- parseRequest url
+      newTlsManager >>= httpLbs req >>= LBS.writeFile pageName . responseBody
+  last . parseHtmlContent <$>
+    readFile pageName
+
+render :: BuildInfo -> FilePath -> FilePath -> IO ()
+render bi dir inFile = do
+  doesE <- doesFileExist (dir </> "Graphics/Cairo/Render.hs")
+  let renderFile = if doesE
+                    then dir </> "Graphics/Cairo/Render.hs"
+                    else "src/Graphics/Cairo/Render.hs"
+  (modRender, _) <- parseModuleFile renderFile (defaultExtensions bi)
+  r <- genRender modRender <$> parseModuleFile inFile (defaultExtensions bi)
+  writeFile (dir </> "Graphics/Cairo/Render.hs") $ prettyPrint r
+
+c2hsWrapper :: BuildInfo -> FilePath -> IO ()
+c2hsWrapper bi fp = do
+  (m, c) <- parseModuleFile fp (defaultExtensions bi)
+  let mc = associateHaddock (m, c)
+  if not $ skipModule c
+    then writeFile fp $ interleavePrint $ refineExports $ liftIO mc c
+    else return ()
+
+interleavePrint :: Module (SrcSpanInfo, [Comment]) -> String
+interleavePrint (Module _ b c d e) = intercalate "\n"
+  [ intercalate "\n" $ map prettyPrint c
+  , case b of
+      Nothing -> ""
+      Just mh@(ModuleHead _ (ModuleName (_, mc) _) _ _) ->
+        intercalate "\n"
+          [ commentsPrint mc
+          , prettyPrint mh ]
+  , intercalate "\n" $ map prettyPrint d
+  , intercalate "\n" $ map (\decl -> intercalate "\n"
+    [ commentsPrint $ declComments decl
+    , prettyPrint decl ]) e ]
+interleavePrint x = error $ show x
+
+commentsPrint :: [Comment] -> String
+commentsPrint [] = ""
+commentsPrint cs = "{-" ++ intercalate "\n" (map (\ (Comment _ _ s) -> s) cs) ++ "-}"
 
 getLanguagePragmas :: String -> [H.Extension]
 getLanguagePragmas content = case getTopPragmas content of
@@ -63,20 +142,20 @@ getLanguagePragmas content = case getTopPragmas content of
     LanguagePragma _ lps -> map (\(Ident _ n) -> H.EnableExtension $ read n) lps
     _ -> []) pragmas
 
-refineExports :: Module SrcSpanInfo -> Module SrcSpanInfo
-refineExports (Module a (Just (ModuleHead b f g Nothing)) c d e) = refineExports' a b c d e f g noSrcSpan
+refineExports :: Module (SrcSpanInfo, [Comment]) -> Module (SrcSpanInfo, [Comment])
+refineExports (Module a (Just (ModuleHead b f g Nothing)) c d e) = refineExports' a b c d e f g noL
 refineExports (Module a (Just (ModuleHead b f g (Just (ExportSpecList h [])))) c d e) = refineExports' a b c d e f g h
 refineExports x = x
 
-refineExports' :: SrcSpanInfo
-                  -> SrcSpanInfo
-                  -> [ModulePragma SrcSpanInfo]
-                  -> [ImportDecl SrcSpanInfo]
-                  -> [Decl SrcSpanInfo]
-                  -> ModuleName SrcSpanInfo
-                  -> Maybe (WarningText SrcSpanInfo)
-                  -> SrcSpanInfo
-                  -> Module SrcSpanInfo
+refineExports' :: (SrcSpanInfo, [Comment])
+                  -> (SrcSpanInfo, [Comment])
+                  -> [ModulePragma (SrcSpanInfo, [Comment])]
+                  -> [ImportDecl (SrcSpanInfo, [Comment])]
+                  -> [Decl (SrcSpanInfo, [Comment])]
+                  -> ModuleName (SrcSpanInfo, [Comment])
+                  -> Maybe (WarningText (SrcSpanInfo, [Comment]))
+                  -> (SrcSpanInfo, [Comment])
+                  -> Module (SrcSpanInfo, [Comment])
 refineExports' a b c d e f@(ModuleName _ mn) g h = Module a (Just $ ModuleHead b f g $ Just $ ExportSpecList h exports) c d e
   where
     exports = catMaybes $ concatMap (\case
@@ -88,22 +167,19 @@ refineExports' a b c d e f@(ModuleName _ mn) g h = Module a (Just $ ModuleHead b
       PatBind _ (PVar _ (Ident _ n)) _ _ -> [Just $ exportPattern mn n]
       _ -> [Nothing]) e
 
-exportType :: String -> String -> ExportSpec SrcSpanInfo
-exportType mn n = EAbs noSrcSpan (NoNamespace noSrcSpan) $ Qual noSrcSpan (ModuleName noSrcSpan mn) $ Ident noSrcSpan n
+exportType :: String -> String -> ExportSpec (SrcSpanInfo, [Comment])
+exportType mn n = EAbs noL (NoNamespace noL) $ Qual noL (ModuleName noL mn) $ Ident noL n
+exportData :: String -> String -> ExportSpec (SrcSpanInfo, [Comment])
+exportData mn n = EThingWith noL (EWildcard noL 0) (Qual noL (ModuleName noL mn) $ Ident noL n) []
+exportPattern :: String -> String -> ExportSpec (SrcSpanInfo, [Comment])
+exportPattern mn n = EAbs noL (NoNamespace noL) $ Qual noL (ModuleName noL mn) $ Ident noL n
+exportFunction :: String -> String -> ExportSpec (SrcSpanInfo, [Comment])
+exportFunction mn n = EVar noL $ Qual noL (ModuleName noL mn) $ Ident noL n
 
-exportData :: String -> String -> ExportSpec SrcSpanInfo
-exportData mn n = EThingWith noSrcSpan (EWildcard noSrcSpan 0) (Qual noSrcSpan (ModuleName noSrcSpan mn) $ Ident noSrcSpan n) []
-
-exportPattern :: String -> String -> ExportSpec SrcSpanInfo
-exportPattern mn n = EAbs noSrcSpan (NoNamespace noSrcSpan) $ Qual noSrcSpan (ModuleName noSrcSpan mn) $ Ident noSrcSpan n
-
-exportFunction :: String -> String -> ExportSpec SrcSpanInfo
-exportFunction mn n = EVar noSrcSpan $ Qual noSrcSpan (ModuleName noSrcSpan mn) $ Ident noSrcSpan n
-
-notExport :: [Char] -> Bool
+notExport :: String -> Bool
 notExport n = last n `elem` ['\'', '_']
 
-nameOfDeclHead :: DeclHead SrcSpanInfo -> String
+nameOfDeclHead :: Show l => DeclHead l -> String
 nameOfDeclHead (DHead _ (Ident _ n)) = n
 nameOfDeclHead (DHApp _ x _) = nameOfDeclHead x
 nameOfDeclHead x = error $ show x
@@ -128,7 +204,7 @@ genRender modRender (Module _ (Just (ModuleHead _ (ModuleName _ mn) _ _)) _ _ e,
       else updateImport mn $ mergeDecl modRender renders
 genRender _ x = error $ show x
 
-mergeDecl :: Module SrcSpanInfo -> [Decl SrcSpanInfo] -> Module SrcSpanInfo
+mergeDecl :: Show l => Module l -> [Decl l] -> Module l
 mergeDecl (Module a b c d e) decls = Module a b c d (deleteFirstsBy sameName e decls ++ decls)
 mergeDecl x _ = error $ show x
 
@@ -167,29 +243,32 @@ funBind paramNum modName funName = FunBind noSrcSpan
             , concat ["  ", modName, ".", prettyPrint funName, " context ", intercalate " " $ map ((++) "v" . show) [2..paramNum]]])
           Nothing]
 
-liftIO :: (Module SrcSpanInfo, [Comment]) -> Module SrcSpanInfo
-liftIO (Module a' b' c' d' e', comments) =
+liftIO :: Module (SrcSpanInfo, [Comment]) -> [Comment] -> Module (SrcSpanInfo, [Comment])
+liftIO (Module a' b' c' d' e') comments =
   let name2LiftIO = detectFunctions2LiftIO e' comments
-  in if skipModule comments || null name2LiftIO
+  in if null name2LiftIO
       then Module a' b' c' d' e'
       else Module a' b' c' (importMonadIO : d') $ concatMap (\case
         TypeSig a ns b -> map (\n -> if n `isIn` name2LiftIO
           then liftIOTypeSig $ TypeSig a [n] b
           else TypeSig a [n] b) ns
         g@(PatBind a f@(PVar _ b) (UnGuardedRhs c d) e) -> [if b `isIn` name2LiftIO
-          then PatBind a f (UnGuardedRhs c $ InfixApp noSrcSpan
-                                                      (Var noSrcSpan (UnQual noSrcSpan (Ident noSrcSpan "liftIO")))
-                                                      (QVarOp noSrcSpan (UnQual noSrcSpan (Symbol noSrcSpan ".")))
+          then PatBind a f (UnGuardedRhs c $ InfixApp noL
+                                                      (Var noL (UnQual noL (Ident noL "liftIO")))
+                                                      (QVarOp noL (UnQual noL (Symbol noL ".")))
                                                       d) e
           else g]
         FunBind a bs -> map (\b@(Match c d e (UnGuardedRhs f g) h) -> if d `isIn` name2LiftIO
-          then FunBind a [Match c d e (UnGuardedRhs f $ InfixApp noSrcSpan
-                                                          (Var noSrcSpan (UnQual noSrcSpan (Ident noSrcSpan "liftIO")))
-                                                          (QVarOp noSrcSpan (UnQual noSrcSpan (Symbol noSrcSpan "$")))
+          then FunBind a [Match c d e (UnGuardedRhs f $ InfixApp noL
+                                                          (Var noL (UnQual noL (Ident noL "liftIO")))
+                                                          (QVarOp noL (UnQual noL (Symbol noL "$")))
                                                           g) h]
           else FunBind a [b]) bs
         x -> [x]) e'
-liftIO x = error $ show x
+liftIO x _ = error $ show x
+
+noL :: (SrcSpanInfo, [Comment])
+noL = (noSrcSpan, [])
 
 isIn :: Name l -> [Name l] -> Bool
 isIn (Ident _ x) xs = case find (\case
@@ -220,7 +299,7 @@ skipModule :: [Comment] -> Bool
 skipModule = any (\(Comment ml _ comment) ->
   not ml && comment == " λ SKIP MODULE")
 
-detectFunctions2LiftIO :: [Decl SrcSpanInfo] -> [Comment] -> [Name SrcSpanInfo]
+detectFunctions2LiftIO :: [Decl l] -> [Comment] -> [Name l]
 detectFunctions2LiftIO decls comments =
   concatMap (\(TypeSig _ ns _) -> ns) $ filter (\case
     TypeSig _ ns (TyForall _ _ _ t) -> checkType t && all (\(Ident _ n) -> not $ checkAnn n comments) ns
@@ -236,13 +315,13 @@ checkAnn :: String -> [Comment] -> Bool
 checkAnn n = any (\(Comment ml _ comment) ->
   not ml && comment == (" λ SKIP " ++ n))
 
-liftIOTypeSig :: Decl SrcSpanInfo -> Decl SrcSpanInfo
+liftIOTypeSig :: Decl (SrcSpanInfo, [Comment]) -> Decl (SrcSpanInfo, [Comment])
 liftIOTypeSig (TypeSig a b z@TyFun{}) = TypeSig a b
-  (TyForall noSrcSpan Nothing
-    (Just $ CxTuple noSrcSpan
-      [ ClassA noSrcSpan
-               (UnQual noSrcSpan (Ident noSrcSpan "MonadIO"))
-               [TyVar noSrcSpan (Ident noSrcSpan "m")] ])
+  (TyForall noL Nothing
+    (Just $ CxTuple noL
+      [ ClassA noL
+               (UnQual noL (Ident noL "MonadIO"))
+               [TyVar noL (Ident noL "m")] ])
     (replaceIO z))
 liftIOTypeSig (TypeSig a b (TyForall c d (Just (CxSingle e f)) z)) =
   TypeSig a b (TyForall c d
@@ -252,18 +331,54 @@ liftIOTypeSig (TypeSig a b (TyForall c d (Just (CxTuple e f)) z)) =
     (TyForall c d (Just $ CxTuple e $ contextMonadIO : f) (replaceIO z))
 liftIOTypeSig x = error $ show x
 
-replaceIO :: Type SrcSpanInfo -> Type SrcSpanInfo
+replaceIO :: Show l => Type l -> Type l
 replaceIO (TyFun a b c) = TyFun a b $ replaceIO c
 replaceIO (TyApp a (TyCon b (UnQual c (Ident d "IO"))) e) =
   TyApp a (TyCon b (UnQual c (Ident d "m"))) e
 replaceIO x = error $ show x
 
-importMonadIO :: ImportDecl SrcSpanInfo
-importMonadIO = ImportDecl noSrcSpan
-  (ModuleName noSrcSpan "Control.Monad.IO.Class")
+importMonadIO :: ImportDecl (SrcSpanInfo, [Comment])
+importMonadIO = ImportDecl noL
+  (ModuleName noL "Control.Monad.IO.Class")
   False False False Nothing Nothing Nothing
 
-contextMonadIO :: Asst SrcSpanInfo
-contextMonadIO = ClassA noSrcSpan
-  (UnQual noSrcSpan (Ident noSrcSpan "MonadIO"))
-  [TyVar noSrcSpan (Ident noSrcSpan "m")]
+contextMonadIO :: Asst (SrcSpanInfo, [Comment])
+contextMonadIO = ClassA noL
+  (UnQual noL (Ident noL "MonadIO"))
+  [TyVar noL (Ident noL "m")]
+
+declComments :: Decl (a, p) -> p
+declComments (TypeDecl (_, c) _ _) = c
+declComments (TypeFamDecl (_, c) _ _ _) = c
+declComments (ClosedTypeFamDecl (_, c) _ _ _ _) = c
+declComments (DataDecl (_, c) _ _ _ _ _) = c
+declComments (GDataDecl (_, c) _ _ _ _ _ _) = c
+declComments (DataFamDecl (_, c) _ _ _) = c
+declComments (TypeInsDecl (_, c) _ _) = c
+declComments (DataInsDecl (_, c) _ _ _ _) = c
+declComments (GDataInsDecl (_, c) _ _ _ _ _) = c
+declComments (ClassDecl (_, c) _ _ _ _) = c
+declComments (InstDecl (_, c) _ _ _) = c
+declComments (DerivDecl (_, c) _ _ _) = c
+declComments (InfixDecl (_, c) _ _ _) = c
+declComments (DefaultDecl (_, c) _) = c
+declComments (SpliceDecl (_, c) _) = c
+declComments (TypeSig (_, c) _ _) = c
+declComments (PatSynSig (_, c) _ _ _ _ _) = c
+declComments (FunBind (_, c) _) = c
+declComments (PatBind (_, c) _ _ _) = c
+declComments (PatSyn (_, c) _ _ _) = c
+declComments (ForImp (_, c) _ _ _ _ _) = c
+declComments (ForExp (_, c) _ _ _ _) = c
+declComments (RulePragmaDecl (_, c) _) = c
+declComments (DeprPragmaDecl (_, c) _) = c
+declComments (WarnPragmaDecl (_, c) _) = c
+declComments (InlineSig (_, c) _ _ _) = c
+declComments (InlineConlikeSig (_, c) _ _) = c
+declComments (SpecSig (_, c) _ _ _) = c
+declComments (SpecInlineSig (_, c) _ _ _ _) = c
+declComments (InstSig (_, c) _) = c
+declComments (AnnPragma (_, c) _) = c
+declComments (MinimalPragma (_, c) _) = c
+declComments (RoleAnnotDecl (_, c) _ _) = c
+declComments (CompletePragma (_, c) _ _) = c

@@ -1,5 +1,5 @@
 name:                cairo-core
-version:             1.16.1
+version:             1.16.2
 -- synopsis:
 -- description:
 homepage:            https://github.com/magicloud/cairo-core#readme
@@ -18,8 +18,13 @@ custom-setup
     base >= 4.7 && < 5,
     Cabal,
     filepath,
-    haskell-src-exts,
-    directory
+    haskell-src-exts < 1.21,
+    directory,
+    http-client,
+    http-client-tls,
+    hxt,
+    hxt-xpath,
+    bytestring
 
 library
   hs-source-dirs:      src

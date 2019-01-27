@@ -1,35 +1,52 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-|
+Description : λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html //div[@class="refnamediv"]/table/tr/td/p/text()
+
+λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-cairo-matrix-t.description
+-}
 module Graphics.Cairo.Utilities.Matrix where
 
 import Graphics.Cairo.Types
 
-initIdentity :: Matrix Double
-initIdentity = Matrix 1 0 0 1 0 0
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-init
+matrixInit :: a -> a -> a -> a -> a -> a -> Matrix a
+matrixInit = Matrix
 
-initTranslate :: X0 -> Y0 -> Matrix Double
-initTranslate = Matrix 1 0 0 1
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-init-identity
+matrixInitIdentity :: Matrix Double
+matrixInitIdentity = Matrix 1 0 0 1 0 0
 
-initScale :: XX -> YY -> Matrix Double
-initScale sx sy = Matrix sx 0 0 sy 0 0
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-init-translate
+matrixInitTranslate :: X0 -> Y0 -> Matrix Double
+matrixInitTranslate = Matrix 1 0 0 1
 
-initRotate :: Radius -> Matrix Double
-initRotate radians = Matrix c s (-s) c 0 0
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-init-scale
+matrixInitScale :: XX -> YY -> Matrix Double
+matrixInitScale sx sy = Matrix sx 0 0 sy 0 0
+
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-init-rotate
+matrixInitRotate :: Radius -> Matrix Double
+matrixInitRotate radians = Matrix c s (-s) c 0 0
   where s = sin radians
         c = cos radians
 
-translate :: X0 -> Y0 -> Matrix Double -> Matrix Double
-translate tx ty m = m * initTranslate tx ty
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-translate
+matrixTranslate :: X0 -> Y0 -> Matrix Double -> Matrix Double
+matrixTranslate tx ty m = m * matrixInitTranslate tx ty
 
-scale :: XX -> YY -> Matrix Double -> Matrix Double
-scale sx sy m = m * initScale sx sy
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-scale
+matrixScale :: XX -> YY -> Matrix Double -> Matrix Double
+matrixScale sx sy m = m * matrixInitScale sx sy
 
-rotate :: Radius -> Matrix Double -> Matrix Double
-rotate radians m = m * initRotate radians
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-rotate
+matrixRotate :: Radius -> Matrix Double -> Matrix Double
+matrixRotate radians m = m * matrixInitRotate radians
 
-invert :: Matrix Double -> Maybe (Matrix Double)
-invert (Matrix 0 0 0 _ _ _) = Nothing
-invert (Matrix _ 0 0 0 _ _) = Nothing
-invert (Matrix xx 0 0 yy x0 y0) =
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-invert
+matrixInvert :: Matrix Double -> Maybe (Matrix Double)
+matrixInvert (Matrix 0 0 0 _ _ _) = Nothing
+matrixInvert (Matrix _ 0 0 0 _ _) = Nothing
+matrixInvert (Matrix xx 0 0 yy x0 y0) =
   let (xx', x0') = if xx /= 1
                      then (recip xx, -x0 * recip xx)
                      else (xx, -x0)
@@ -37,7 +54,7 @@ invert (Matrix xx 0 0 yy x0 y0) =
                      then (recip yy, -y0 * recip yy)
                      else (yy, -y0)
   in Just $ Matrix xx' 0 0 yy' x0' y0'
-invert matrix
+matrixInvert matrix
   | determinant matrix == 0 = Nothing
   | otherwise = Just $ scalarMultiply (adjoint matrix) (recip $ determinant matrix)
   where
@@ -45,11 +62,17 @@ invert matrix
     adjoint (Matrix xx' yx' xy' yy' x0' y0') = Matrix yy' (-yx') (-xy') xx' (xy' * y0' - yy' * x0') (yx' * x0' - xx' * y0')
     scalarMultiply matrix' scalar = fmap (scalar *) matrix'
 
-transformDistance :: Matrix Double -> (X, Y) -> (X, Y)
-transformDistance (Matrix xx yx xy yy _ _) (x, y) =
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-multiply
+matrixMultiply :: Matrix Double -> Matrix Double -> Matrix Double
+matrixMultiply = (*)
+
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-transform-distance
+matrixTransformDistance :: Matrix Double -> (X, Y) -> (X, Y)
+matrixTransformDistance (Matrix xx yx xy yy _ _) (x, y) =
   (xx * x + xy * y, yx * x + yy * y)
 
-transformPoint :: Matrix Double -> (X, Y) -> (X, Y)
-transformPoint matrix@(Matrix _ _ _ _ x0 y0) pd =
-  let (x, y) = transformDistance matrix pd
+-- λ https://www.cairographics.org/manual/cairo-cairo-matrix-t.html#cairo-matrix-transform-point
+matrixTransformPoint :: Matrix Double -> (X, Y) -> (X, Y)
+matrixTransformPoint matrix@(Matrix _ _ _ _ x0 y0) pd =
+  let (x, y) = matrixTransformDistance matrix pd
   in (x + x0, y + y0)

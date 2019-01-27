@@ -1,5 +1,9 @@
 #include "cairo-core.h"
+{-|
+Description : λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html //div[@class="refnamediv"]/table/tr/td/p/text()
 
+λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-cairo-scaled-font-t.description
+-}
 module Graphics.Cairo.Fonts.ScaledFont where
 
 {#import Graphics.Cairo.Types#}
@@ -21,16 +25,21 @@ import Graphics.Cairo.Utilities.ErrorHandling
 instance HasStatus ScaledFont where
   status = scaledFontStatus
 
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-glyph-extents
 scaledFontGlyphExtents :: ScaledFont -> [Glyph] -> IO TextExtents
 scaledFontGlyphExtents scaledFont glyphs =
   withArrayLen glyphs $ \len glyphPtr -> scaledFontGlyphExtents' scaledFont glyphPtr len
   where {#fun scaled_font_glyph_extents as scaledFontGlyphExtents' { `ScaledFont', `GlyphPtr', `Int', alloca- `TextExtents' peek* } -> `()'#}
 
-{#fun scaled_font_status as ^ { `ScaledFont' } -> `Status' #}
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-create
 {#fun scaled_font_create as ^ { `FontFace', with* `Matrix Double', with* `Matrix Double', `FontOptions' } -> `ScaledFont' outScaledFont*#}
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-status
+{#fun scaled_font_status as ^ { `ScaledFont' } -> `Status' #}
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-extents
 {#fun scaled_font_extents as ^ { `ScaledFont', alloca- `FontExtents' peek* } -> `()'#}
 
 #if CAIRO_CHECK_VERSION(1,2,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-get-font-face
 scaledFontGetFontFace :: ScaledFont -> IO FontFace
 scaledFontGetFontFace sf = do
   ff <- scaledFontGetFontFace' sf
@@ -38,6 +47,7 @@ scaledFontGetFontFace sf = do
   return ff
   where {#fun scaled_font_get_font_face as scaledFontGetFontFace' { `ScaledFont' } -> `FontFace' outFontFaceRef*#}
 
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-get-font-options
 scaledFontGetFontOptions :: ScaledFont -> IO FontOptions
 scaledFontGetFontOptions sf = do
   fo <- (fontOptionsCreate >>= scaledFontGetFontOptions' sf)
@@ -45,17 +55,23 @@ scaledFontGetFontOptions sf = do
   return fo
   where {#fun scaled_font_get_font_options as scaledFontGetFontOptions' { `ScaledFont', `FontOptions' outFontOptions* } -> `()'#}
 
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-text-extents
 {#fun scaled_font_text_extents as ^ { `ScaledFont', withUTF8String* `String', alloca- `TextExtents' peek* } -> `()'#}
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-get-font-matrix
 {#fun scaled_font_get_font_matrix as ^ { `ScaledFont', alloca- `Matrix Double' peek* } -> `()'#}
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-get-ctm
 {#fun scaled_font_get_ctm as ^ { `ScaledFont', alloca- `Matrix Double' peek* } -> `()'#}
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-get-type
 {#fun scaled_font_get_type as ^ { `ScaledFont' } -> `FontType'#}
 #endif
 
 #if CAIRO_CHECK_VERSION(1,4,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-get-reference-count
 {#fun scaled_font_get_reference_count as ^ { `ScaledFont' } -> `Int'#}
 #endif
 
 #if CAIRO_CHECK_VERSION(1,8,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-text-to-glyphs
 scaledFontTextToGlyphs :: ScaledFont
                           -> X
                           -> Y
@@ -79,5 +95,6 @@ scaledFontTextToGlyphs scaledFont x y utf8 =
   where
     {#fun scaled_font_text_to_glyphs as scaledFontTextToGlyphs' { `ScaledFont', CDouble `X', CDouble `Y', withUTF8String* `String', `Int', id `Ptr GlyphPtr', alloca- `Int' peekInt*, id `Ptr TextClusterPtr', alloca- `Int' peekInt*, alloca- `TextClusterFlags' peekEnum* } -> `Status'#}
 
+-- λ https://www.cairographics.org/manual/cairo-cairo-scaled-font-t.html#cairo-scaled-font-get-scale-matrix
 {#fun scaled_font_get_scale_matrix as ^ { `ScaledFont', alloca- `Matrix Double' peek* } -> `()'#}
 #endif
