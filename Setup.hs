@@ -16,7 +16,7 @@ import qualified Language.Haskell.Exts.Extension as H
 import           Language.Haskell.Exts.Parser
 import           Language.Haskell.Exts.Pretty
 import           Language.Haskell.Exts.SrcLoc
-import           Language.Haskell.Exts.Syntax
+import           Language.Haskell.Exts.Syntax    hiding (XTag, XAttr)
 import           Network.HTTP.Client
 import           Network.HTTP.Client.TLS
 import           System.Directory
@@ -76,13 +76,136 @@ mkDoc line = map (\case
   Just i -> do
     let url = take i line
         archor = drop (i + 1) line
-    xshow . getXPath ("string(//a[@name='" ++ archor ++ "']/..)") <$> cache url
+    defShow . head . getXPath ("//a[@name='" ++ archor ++ "']/..") <$> cache url
   Nothing -> case ' ' `elemIndex` line of
     Just i -> do
       let url = take i line
           xpath = drop (i + 1) line
       xshow . getXPath xpath <$> cache url
     Nothing -> error line
+
+strip :: String -> String
+strip qeds
+  | head qeds == '"'
+  , last qeds == '"'
+  = tail $ init qeds
+  | otherwise = qeds
+
+haddockEscape :: String -> String
+haddockEscape = concatMap (\c ->
+  if c `elem` "/"
+    then ['\\', c]
+    else [c])
+
+defShow :: NTree XNode -> String
+defShow (NTree (XTag div' _) contents)
+  | div' == mkName "div"
+  = intercalate "\n" $ map defShow contents
+defShow (NTree (XTag p' [NTree (XAttr class') [NTree (XText "since") []]]) [NTree (XText since) []])
+  | p' == mkName "p"
+  , class' == mkName "class"
+  , "Since: " `isPrefixOf` since
+  = "@since " ++ drop 7 since
+  | otherwise = show since
+defShow (NTree (XTag h' []) inners)
+  | h' `elem` map (mkName . (:) 'h' . show) [1 .. 9 :: Int]
+  = replicate (read $ drop 1 $ strip $ show h') '=' ++ " " ++ concatMap defShow inners
+defShow (NTree (XTag p' attrs) inners)
+  | p' == mkName "p"
+  = let attr = filter (attrMatch "class") attrs
+        NTree _ [NTree (XText class') _] = head attr
+    in if not (null attr) && class' == "title"
+       then concatMap defShow inners -- this case is useless?
+       else concatMap defShow inners
+defShow (NTree (XText t) inners) = if t == "\n"
+    then concatMap defShow inners
+    else t ++ concatMap defShow inners
+defShow (NTree (XTag a' [NTree (XAttr name') _]) [])
+  | a' == mkName "a"
+  , name' == mkName "name"
+  = "" -- Ignore HTML anchor.
+defShow (NTree (XTag pre' _) code)
+  | pre' == mkName "pre"
+  = intercalate "\n" ["@", concatMap defShow code, "@"]
+defShow t@(NTree (XTag table' _) _)
+  | table' == mkName "table"
+  , not $ null $ getXPath "/table[@class='informaltable' and colgroup/col/@class='struct_members_name' and colgroup/col/@class='struct_members_description' and colgroup/col/@class='struct_members_annotations']" t
+  = intercalate "\n" $ map (\tr ->
+    let name = concatMap defShow $ getXPath "/tr/td[@class='struct_member_name']/child::node()" tr
+        desc = concatMap defShow $ getXPath "/tr/td[@class='struct_member_description']/child::node()" tr
+        anno = concatMap defShow $ getXPath "/tr/td[@class='struct_member_annotations']/child::node()" tr
+    in "[" ++ name ++ "]: " ++ desc ++ "\n\n    " ++ anno) $ getXPath "/table/tbody/tr" t
+defShow t@(NTree (XTag table' _) _)
+  | table' == mkName "table"
+  , not $ null $ getXPath "/table[@class='informaltable' and colgroup/col/@class='enum_members_name' and colgroup/col/@class='enum_members_description' and colgroup/col/@class='enum_members_annotations']" t
+  = intercalate "\n" $ map (\tr ->
+    let name = concatMap defShow $ getXPath "/tr/td[@class='enum_member_name']/child::node()" tr
+        desc = concatMap defShow $ getXPath "/tr/td[@class='enum_member_description']/child::node()" tr
+        anno = concatMap defShow $ getXPath "/tr/td[@class='enum_member_annotations']/child::node()" tr
+    in "[" ++ name ++ "]: " ++ desc ++ "\n\n    " ++ anno) $ getXPath "/table/tbody/tr" t
+defShow t@(NTree (XTag table' _) _)
+  | table' == mkName "table"
+  , not $ null $ getXPath "/table[@class='informaltable' and colgroup/col/@class='parameters_name' and colgroup/col/@class='parameters_description' and colgroup/col/@class='parameters_annotations']" t
+  = intercalate "\n" $ map (\tr ->
+    let name = concatMap defShow $ getXPath "/tr/td[@class='parameter_name']/child::node()" tr
+        desc = concatMap defShow $ getXPath "/tr/td[@class='parameter_description']/child::node()" tr
+        anno = concatMap defShow $ getXPath "/tr/td[@class='parameter_annotations']/child::node()" tr
+    in "[" ++ name ++ "]: " ++ desc ++ "\n\n    " ++ anno) $ getXPath "/table/tbody/tr" t
+defShow t@(NTree (XTag table' _) _)
+  | table' == mkName "table"
+  , not $ null $ getXPath "/table[@class='listing_frame']/tbody/tr/td[@class='listing_code']/pre[@class='programlisting']" t
+  = let code = xshow $ getXPath "string(/table[@class='listing_frame']/tbody/tr/td[@class='listing_code']/pre[@class='programlisting'])" t
+    in "@\n" ++ code ++ "\n@"
+defShow (NTree (XTag a' attrs) inners)
+  | a' == mkName "a"
+  = let [NTree _ [NTree (XText url') _]] = filter (attrMatch "href") attrs
+        url = haddockEscape $ if "http" `isPrefixOf` url'
+          then url'
+          else "https://www.cairographics.org/manual/" ++ url'
+    in "[" ++ concatMap defShow inners ++ "](" ++ url ++ ")"
+defShow (NTree (XTag hr' _) _)
+  | hr' == mkName "hr"
+  = "\n"
+defShow (NTree (XTag br' _) _)
+  | br' == mkName "br"
+  = "\n"
+defShow (NTree (XTag ul' _) lis)
+  | ul' == mkName "ul"
+  = intercalate "\n" $ map ulShow lis
+defShow (NTree (XTag ol' _) lis)
+  | ol' == mkName "ol"
+  = intercalate "\n" $ map olShow $ zip lis [1..]
+defShow (NTree (XTag code' _) inners)
+  | code' == mkName "code"
+  = concatMap defShow inners
+defShow (NTree (XTag em' _) inners)
+  | em' == mkName "em"
+  = "/" ++ concatMap defShow inners ++ "/"
+defShow (NTree (XTag span' _) inners)
+  | span' == mkName "span"
+  = concatMap defShow inners
+defShow (NTree (XTag b' _) inners)
+  | b' == mkName "b"
+  = concatMap defShow inners
+defShow x = error $ show x
+
+ulShow :: NTree XNode -> String
+ulShow (NTree (XTag li' _) xs)
+  | li' == mkName "li"
+  = "- " ++ concatMap defShow xs
+ulShow x = defShow x
+
+olShow :: (NTree XNode, Int) -> String
+olShow (NTree (XTag li' _) xs, i)
+  | li' == mkName "li"
+  = show i ++ ". " ++ concatMap defShow xs
+olShow (x, _) = defShow x
+
+attrMatch :: String -> NTree XNode -> Bool
+attrMatch attrName (NTree (XAttr attr') _)
+  | attr' == mkName attrName
+  = True
+attrMatch _ _ = False
 
 cache :: String -> IO (NTree XNode)
 cache url = do
