@@ -1,0 +1,69 @@
+commit db325b51d98a127e48b6323df4e91b9f34e4e0d0
+Author: Magicloud <1886157+Magicloud@users.noreply.github.com>
+Date:   Sat Feb 2 14:59:48 2019 +0800
+
+    Refine hackage information.
+
+commit a10112f890a39805f5f49bfa6d479694e8f642bc
+Author: Magicloud <1886157+Magicloud@users.noreply.github.com>
+Date:   Sat Feb 2 14:55:17 2019 +0800
+
+    Pretty Document
+    
+    DONE: Document formating. Current document just removes all formation,
+    which looks ugly.
+
+commit 570c98b464dcb0b2a9a20607a7e6fa592fcd2fb6
+Author: Magicloud <1886157+Magicloud@users.noreply.github.com>
+Date:   Sun Jan 27 17:41:27 2019 +0800
+
+    Document generation, from URLs pointing to Cairo website.
+    
+    Even this is just a binding library. Proper docuemnt saves end user from
+    opening another website and checking for naming and parameters
+    difference.
+    
+    TODO: Document formating. Current document just removes all formation,
+    which looks ugly.
+
+commit d670308e221f532735c76c6e482d6729f1ce7af2
+Author: Magicloud <1886157+Magicloud@users.noreply.github.com>
+Date:   Fri Jan 18 23:47:54 2019 +0800
+
+    Fix Render generation logic. Now this package is rebuildable and works
+    with haddock.
+    
+    Building system skips source files that are not changed after last
+    building. Thus those files won't be scanned by `genRender`. Therefore
+    target Render.hs did not contain methods from those since it was always
+    from Render.hs in source.
+    
+    Now target Render.hs is checked first to see if this is just updating
+    some Decls, or generating new from source.
+
+commit 897c705222ce09217b44627c53697633ea52c0d1
+Author: 王世达 <1886157+Magicloud@users.noreply.github.com>
+Date:   Wed Jan 16 00:01:31 2019 +0800
+
+    Update README.md
+
+commit f1a9a8b8ff817e6c01c14cf3b7907ea80a08c7dd
+Author: Magicloud <1886157+Magicloud@users.noreply.github.com>
+Date:   Tue Jan 15 22:59:14 2019 +0800
+
+    Update readme. Add `MonadIO Render` and `with`.
+    
+    `IO` action in `Render` cannot be done without `MonadIO Render`.
+    
+    `with` is `use` in `Render`.
+
+commit 3d24f3557b94774b3016ea7c2520d8621c02b96d
+Author: Magicloud <1886157+Magicloud@users.noreply.github.com>
+Date:   Wed Jan 9 15:39:07 2019 +0800
+
+    Cairo Haskell binding. Non-optional part.
+    
+    Cairo binding available with GHC 8.6. Trying to make this memory safe
+    and typed.
+    
+    Haddock does not work yet.
