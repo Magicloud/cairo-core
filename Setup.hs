@@ -7,6 +7,7 @@ import           Data.Char
 import           Data.List
 import           Data.Maybe
 import           Data.Tree.NTree.TypeDefs
+import           Debug.Trace
 import           Distribution.Simple             hiding ( Module(..) )
 import           Distribution.Simple.PreProcess
 import           Distribution.Types.BuildInfo
@@ -112,11 +113,9 @@ defShow (NTree (XTag h' []) inners)
   = replicate (read $ drop 1 $ strip $ show h') '=' ++ " " ++ concatMap defShow inners
 defShow (NTree (XTag p' attrs) inners)
   | p' == mkName "p"
-  = let attr = filter (attrMatch "class") attrs
-        NTree _ [NTree (XText class') _] = head attr
-    in if not (null attr) && class' == "title"
-       then concatMap defShow inners -- this case is useless?
-       else concatMap defShow inners
+  = map (\case
+      '\n' -> ' '
+      x -> x) $ concatMap defShow inners
 defShow (NTree (XText t) inners) = if t == "\n"
     then concatMap defShow inners
     else t ++ concatMap defShow inners

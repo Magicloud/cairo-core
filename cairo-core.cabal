@@ -1,5 +1,5 @@
 name:                cairo-core
-version:             1.16.3
+version:             1.16.4
 synopsis:            Cairo Haskell binding (core functions)
 description:         Cairo Haskell binding (core functions). Please checkout cairo-opts for other functions.
 homepage:            https://github.com/magicloud/cairo-core#readme
