@@ -1,5 +1,5 @@
 name:                cairo-core
-version:             1.16.4
+version:             1.16.5
 synopsis:            Cairo Haskell binding (core functions)
 description:         Cairo Haskell binding (core functions). Please checkout cairo-opts for other functions.
 homepage:            https://github.com/magicloud/cairo-core#readme
@@ -10,7 +10,7 @@ maintainer:          magiclouds@gmail.com
 copyright:           None
 category:            Graphics
 build-type:          Custom
-extra-source-files:  README.md, Changelog
+extra-source-files:  README.md, Changelog, include/cairo-core.h
 cabal-version:       2.0
 
 custom-setup
@@ -50,7 +50,6 @@ library
                      , monad-extras
                      , transformers
   default-language:    Haskell2010
-  c-sources:           include/cairo-core.h
   include-dirs:        include
   pkgconfig-depends:   cairo
   build-tools:         c2hs

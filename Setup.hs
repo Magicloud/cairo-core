@@ -7,7 +7,6 @@ import           Data.Char
 import           Data.List
 import           Data.Maybe
 import           Data.Tree.NTree.TypeDefs
-import           Debug.Trace
 import           Distribution.Simple             hiding ( Module(..) )
 import           Distribution.Simple.PreProcess
 import           Distribution.Types.BuildInfo
@@ -111,7 +110,7 @@ defShow (NTree (XTag p' [NTree (XAttr class') [NTree (XText "since") []]]) [NTre
 defShow (NTree (XTag h' []) inners)
   | h' `elem` map (mkName . (:) 'h' . show) [1 .. 9 :: Int]
   = replicate (read $ drop 1 $ strip $ show h') '=' ++ " " ++ concatMap defShow inners
-defShow (NTree (XTag p' attrs) inners)
+defShow (NTree (XTag p' _) inners)
   | p' == mkName "p"
   = map (\case
       '\n' -> ' '
