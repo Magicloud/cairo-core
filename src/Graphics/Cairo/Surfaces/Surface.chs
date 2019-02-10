@@ -35,51 +35,43 @@ instance HasStatus Surface where
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-set-device-offset
 {#fun surface_set_device_offset as ^ { `Surface', CDouble `XOffset', CDouble `YOffset' } -> `()'#}
 
-#if CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-get-content
-{#fun surface_get_content as ^ { `Surface' } -> `Content'#}
+{#fun surface_get_content as ^ { `Surface' } -> `Content'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-get-device-offset
-{#fun surface_get_device_offset as ^ { `Surface', alloca- `XOffset' peekDouble*, alloca- `YOffset' peekDouble* } -> `()'#}
+{#fun surface_get_device_offset as ^ { `Surface', alloca- `XOffset' peekDouble*, alloca- `YOffset' peekDouble* } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-set-fallback-resolution
-{#fun surface_set_fallback_resolution as ^ { `Surface', CDouble `XResolution', CDouble `YResolution' } -> `()'#}
+{#fun surface_set_fallback_resolution as ^ { `Surface', CDouble `XResolution', CDouble `YResolution' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-get-type
-{#fun surface_get_type as ^ { `Surface' } -> `SurfaceType'#}
-#endif -- CAIRO_CHECK_VERSION(1,2,0)
+{#fun surface_get_type as ^ { `Surface' } -> `SurfaceType'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 
-#if CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-get-reference-count
-{#fun surface_get_reference_count as ^ { `Surface' } -> `Int'#}
-#endif -- CAIRO_CHECK_VERSION(1,4,0)
+{#fun surface_get_reference_count as ^ { `Surface' } -> `Int'#} -- λ require CAIRO_CHECK_VERSION(1,4,0)
 
-#if CAIRO_CHECK_VERSION(1,6,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-copy-page
-{#fun surface_copy_page as ^ { `Surface' } -> `()'#}
+{#fun surface_copy_page as ^ { `Surface' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,6,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-show-page
-{#fun surface_show_page as ^ { `Surface' } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,6,0)
+{#fun surface_show_page as ^ { `Surface' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,6,0)
 
-#if CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-has-show-text-glyphs
-{#fun surface_has_show_text_glyphs as ^ { `Surface' } -> `Bool'#}
+{#fun surface_has_show_text_glyphs as ^ { `Surface' } -> `Bool'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-get-fallback-resolution
-{#fun surface_get_fallback_resolution as ^ { `Surface', alloca- `XResolution' peekDouble*, alloca- `YResolution' peekDouble* } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,8,0)
+{#fun surface_get_fallback_resolution as ^ { `Surface', alloca- `XResolution' peekDouble*, alloca- `YResolution' peekDouble* } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 
-#if CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-create-for-rectangle
-{#fun surface_create_for_rectangle as ^ { `Surface', CDouble `X', CDouble `Y', CDouble `Width', CDouble `Height'} -> `Surface' outSurface*#}
+{#fun surface_create_for_rectangle as ^ { `Surface', CDouble `X', CDouble `Y', CDouble `Width', CDouble `Height'} -> `Surface' outSurface*#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-get-device
-{#fun surface_get_device as ^ { `Surface' } -> `Maybe Device' outMaybeDevice*#}
-#endif -- CAIRO_CHECK_VERSION(1,10,0)
+{#fun surface_get_device as ^ { `Surface' } -> `Maybe Device' outMaybeDevice*#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 
-#if CAIRO_CHECK_VERSION(1,12,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-create-similar-image
-{#fun surface_create_similar_image as ^ { `Surface', `Format', fromIntegral `WidthInt', fromIntegral `HeightInt' } -> `Surface' outSurface*#}
+{#fun surface_create_similar_image as ^ { `Surface', `Format', fromIntegral `WidthInt', fromIntegral `HeightInt' } -> `Surface' outSurface*#} -- λ require CAIRO_CHECK_VERSION(1,12,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-supports-mime-type
+{#fun surface_supports_mime_type as ^ { `Surface', `String' } -> `Bool'#} -- λ require CAIRO_CHECK_VERSION(1,12,0)
 
 {-|
 λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-map-to-image
 λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-unmap-image
 -}
+#if CAIRO_CHECK_VERSION(1,12,0)
 useSurfaceMapImage :: Surface
                       -> Maybe (Rectangle Int) -> (Surface -> IO c) -> IO c
 useSurfaceMapImage s mr f =
@@ -90,14 +82,12 @@ useSurfaceMapImage s mr f =
   where
     {#fun surface_map_to_image as ^ { `Surface', withMaybe* `Maybe (Rectangle Int)' } -> `Surface' outSurface*#}
     {#fun surface_unmap_image as ^ { `Surface', `Surface' } -> `()'#}
+#else
+{-# WARNING useSurfaceMapImage "CAIRO_CHECK_VERSION(1,12,0) unmet" #-}
+useSurfaceMapImage = undefined
+#endif
 
--- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-supports-mime-type
-{#fun surface_supports_mime_type as ^ { `Surface', `String' } -> `Bool'#}
-#endif -- CAIRO_CHECK_VERSION(1,12,0)
-
-#if CAIRO_CHECK_VERSION(1,14,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-get-device-scale
-{#fun surface_get_device_scale as ^ { `Surface', alloca- `XScale' peekDouble*, alloca- `YScale' peekDouble* } -> `()'#}
+{#fun surface_get_device_scale as ^ { `Surface', alloca- `XScale' peekDouble*, alloca- `YScale' peekDouble* } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,14,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-set-device-scale
-{#fun surface_set_device_scale as ^ { `Surface', CDouble `XScale', CDouble `YScale' } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,14,0)
+{#fun surface_set_device_scale as ^ { `Surface', CDouble `XScale', CDouble `YScale' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,14,0)

@@ -10,9 +10,7 @@ module Graphics.Cairo.Drawing.TagsLinks where
 
 {#context lib="cairo" prefix="cairo"#}
 
-#if CAIRO_CHECK_VERSION(1,16,0)
 -- λ https://www.cairographics.org/manual/cairo-Tags-and-Links.html#cairo-tag-begin
-{#fun tag_begin as ^ { `Context', `String', `String' } -> `()'#}
+{#fun tag_begin as ^ { `Context', `String', `String' } -> `()'#}-- λ require CAIRO_CHECK_VERSION(1,16,0)
 -- λ https://www.cairographics.org/manual/cairo-Tags-and-Links.html#cairo-tag-end
-{#fun tag_end as ^ { `Context', `String' } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,16,0)
+{#fun tag_end as ^ { `Context', `String' } -> `()'#}-- λ require CAIRO_CHECK_VERSION(1,16,0)

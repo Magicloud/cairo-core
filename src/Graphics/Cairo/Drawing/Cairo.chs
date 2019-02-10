@@ -105,27 +105,30 @@ instance HasStatus Context where
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-show-page
 {#fun show_page as ^ { `Context' } -> `()'#}
 
-#if CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-push-group
-{#fun push_group as ^ { `Context' } -> `()'#}
+{#fun push_group as ^ { `Context' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-push-group-with-content
-{#fun push_group_with_content as ^ { `Context', `Content' } -> `()'#}
+{#fun push_group_with_content as ^ { `Context', `Content' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-pop-group
-{#fun pop_group as ^ { `Context' } -> `Pattern' outPattern*#}
+{#fun pop_group as ^ { `Context' } -> `Pattern' outPattern*#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-pop-group-to-source
-{#fun pop_group_to_source as ^ { `Context' } -> `()'#}
+{#fun pop_group_to_source as ^ { `Context' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-get-group-target
-{#fun get_group_target as ^ { `Context' } -> `Surface' outSurfaceRef*#}
-#endif -- CAIRO_CHECK_VERSION(1,2,0)
+{#fun get_group_target as ^ { `Context' } -> `Surface' outSurfaceRef*#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 
-#if CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-set-dash
+#if CAIRO_CHECK_VERSION(1,4,0)
 setDash :: Context -> [Double] -> Offset -> IO ()
 setDash context dashes offset =
-  withArrayLen (map (CDouble) dashes) $ \len ptr -> setDash' context ptr len offset
-  where {#fun set_dash as setDash' { `Context', id `Ptr CDouble', `Int', CDouble `Offset' } -> `()'#}
+  setDash' context (map CDouble dashes) offset
+  where {#fun set_dash as setDash' { `Context', withArrayLen_* `[CDouble]'&, CDouble `Offset' } -> `()'#}
+#else
+{-# WARNING setDash "CAIRO_CHECK_VERSION(1,4,0) unmet" #-}
+setDash = undefined
+#endif
 
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-get-dash
+#if CAIRO_CHECK_VERSION(1,4,0)
 getDash :: Context -> IO ([Double], Offset)
 getDash context = do
   len <- getDashCount context
@@ -134,18 +137,19 @@ getDash context = do
     dashes <- (map (\(CDouble x) -> x)) <$> peekArray len ptr
     return (dashes, offset)
   where {#fun get_dash as getDash' { `Context', id `Ptr CDouble', alloca- `Offset' peekDouble* } -> `()'#}
+#else
+{-# WARNING getDash "CAIRO_CHECK_VERSION(1,4,0) unmet" #-}
+getDash = undefined
+#endif
 
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-get-dash-count
-{#fun get_dash_count as ^ { `Context' } -> `Int'#}
+{#fun get_dash_count as ^ { `Context' } -> `Int'#} -- λ require CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-clip-extents
-{#fun clip_extents as ^ { `Context', alloca- `X' peekDouble*, alloca- `Y' peekDouble*, alloca- `X' peekDouble*, alloca- `Y' peekDouble* } -> `()'#}
+{#fun clip_extents as ^ { `Context', alloca- `X' peekDouble*, alloca- `Y' peekDouble*, alloca- `X' peekDouble*, alloca- `Y' peekDouble* } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-copy-clip-rectangle-list
-{#fun copy_clip_rectangle_list as ^ { `Context' } -> `RectangleList Double' peek*#}
+{#fun copy_clip_rectangle_list as ^ { `Context' } -> `RectangleList Double' peek*#} -- λ require CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-get-reference-count
-{#fun get_reference_count as ^ { `Context' } -> `Int'#}
-#endif -- CAIRO_CHECK_VERSION(1,4,0)
+{#fun get_reference_count as ^ { `Context' } -> `Int'#} -- λ require CAIRO_CHECK_VERSION(1,4,0)
 
-#if CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-in-clip
-{#fun in_clip as ^ { `Context', CDouble `X', CDouble `Y' } -> `Bool'#}
-#endif -- CAIRO_CHECK_VERSION(1,10,0)
+{#fun in_clip as ^ { `Context', CDouble `X', CDouble `Y' } -> `Bool'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)

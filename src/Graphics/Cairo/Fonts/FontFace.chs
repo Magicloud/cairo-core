@@ -18,12 +18,8 @@ instance HasStatus FontFace where
 -- λ https://www.cairographics.org/manual/cairo-cairo-font-face-t.html#cairo-font-face-status
 {#fun font_face_status as ^ { `FontFace' } -> `Status'#}
 
-#if CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-font-face-t.html#cairo-font-face-get-type
-{#fun font_face_get_type as ^ { `FontFace' } -> `FontType'#}
-#endif -- CAIRO_CHECK_VERSION(1,2,0)
+{#fun font_face_get_type as ^ { `FontFace' } -> `FontType'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 
-#if CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-font-face-t.html#cairo-font-face-get-reference-count
-{#fun font_face_get_reference_count as ^ { `FontFace' } -> `Int'#}
-#endif -- CAIRO_CHECK_VERSION(1,4,0)
+{#fun font_face_get_reference_count as ^ { `FontFace' } -> `Int'#} -- λ require CAIRO_CHECK_VERSION(1,4,0)

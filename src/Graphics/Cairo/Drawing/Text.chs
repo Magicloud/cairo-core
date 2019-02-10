@@ -33,6 +33,10 @@ import Graphics.Cairo.Utilities.ErrorHandling
 {#fun font_extents as ^ { `Context', alloca- `FontExtents' peek* } -> `()'#}
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-text-extents
 {#fun text_extents as ^ { `Context', withUTF8String* `String', alloca- `TextExtents' peek* } -> `()'#}
+-- λ https://www.cairographics.org/manual/cairo-text.html#cairo-glyph-extents
+{#fun glyph_extents as ^ { `Context', withArrayLen_* `[Glyph]'&, alloca- `TextExtents' peek* } -> `()'#}
+-- λ https://www.cairographics.org/manual/cairo-text.html#cairo-show-glyphs
+{#fun show_glyphs as ^ { `Context', withArrayLen_* `[Glyph]'& } -> `()'#}
 
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-get-font-options
 getFontOptions :: Context -> IO FontOptions
@@ -42,48 +46,33 @@ getFontOptions c = do
   return fo
   where {#fun get_font_options as getFontOptions' { `Context', `FontOptions' outFontOptions* } -> `()'#}
 
--- λ https://www.cairographics.org/manual/cairo-text.html#cairo-glyph-extents
-glyphExtents :: Context -> [Glyph] -> IO TextExtents
-glyphExtents context glyphs =
-  withArrayLen glyphs $ \len ptr -> glyphExtents' context ptr len
-  where {#fun glyph_extents as glyphExtents' { `Context', `GlyphPtr', `Int', alloca- `TextExtents' peek* } -> `()'#}
-
--- λ https://www.cairographics.org/manual/cairo-text.html#cairo-show-glyphs
-showGlyphs :: Context -> [Glyph] -> IO ()
-showGlyphs context glyphs =
-  withArrayLen glyphs $ \len glyphPtr -> showGlyphs' context glyphPtr len
-  where {#fun show_glyphs as showGlyphs' { `Context', `GlyphPtr', `Int' } -> `()'#}
-
-#if CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-set-scaled-font
-{#fun set_scaled_font as ^ { `Context', `ScaledFont' } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,2,0)
+{#fun set_scaled_font as ^ { `Context', `ScaledFont' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 
-#if CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-get-scaled-font
-{#fun get_scaled_font as ^ { `Context' } -> `ScaledFont' outScaledFontRef*#}
-#endif -- CAIRO_CHECK_VERSION(1,4,0)
+{#fun get_scaled_font as ^ { `Context' } -> `ScaledFont' outScaledFontRef*#} -- λ require CAIRO_CHECK_VERSION(1,4,0)
 
-#if CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-show-text-glyphs
+#if CAIRO_CHECK_VERSION(1,8,0)
 showTextGlyphs :: Context
                   -> String -> [Glyph] -> [TextCluster] -> TextClusterFlags -> IO ()
 showTextGlyphs context utf8 glyphs textClusters textClusterFlags =
-  withArrayLen glyphs $ \glyphLen glyphPtr ->
-    withArrayLen textClusters $ \tcLen tcPtr ->
-        showTextGlyphs' context utf8 (-1) glyphPtr glyphLen tcPtr tcLen textClusterFlags
-  where {#fun show_text_glyphs as showTextGlyphs' { `Context', withUTF8String* `String', `Int', `GlyphPtr', `Int', `TextClusterPtr', `Int', `TextClusterFlags' } -> `()'#}
+  showTextGlyphs' context utf8 (-1) glyphs textClusters textClusterFlags
+  where {#fun show_text_glyphs as showTextGlyphs' { `Context', withUTF8String* `String', `Int', withArrayLen_* `[Glyph]'&,withArrayLen_* `[TextCluster]'&, `TextClusterFlags' } -> `()'#}
+#else
+{-# WARNING showTextGlyphs "CAIRO_CHECK_VERSION(1,8,0) unmet" #-}
+showTextGlyphs= undefined
+#endif
 
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-text-cluster-free
-{#fun text_cluster_free as ^ { `TextClusterPtr' } -> `()'#}
+{#fun text_cluster_free as ^ { `TextClusterPtr' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-glyph-free
-{#fun glyph_free as ^ { `GlyphPtr' } -> `()'#}
+{#fun glyph_free as ^ { `GlyphPtr' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-toy-font-face-create
-{#fun toy_font_face_create as ^ { withUTF8String* `String', `FontSlant', `FontWeight' } -> `FontFace'#}
+{#fun toy_font_face_create as ^ { withUTF8String* `String', `FontSlant', `FontWeight' } -> `FontFace'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-toy-font-face-get-family
-{#fun toy_font_face_get_family as ^ { `FontFace' } -> `String'#}
+{#fun toy_font_face_get_family as ^ { `FontFace' } -> `String'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-toy-font-face-get-slant
-{#fun toy_font_face_get_slant as ^ { `FontFace' } -> `FontSlant'#}
+{#fun toy_font_face_get_slant as ^ { `FontFace' } -> `FontSlant'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-toy-font-face-get-weight
-{#fun toy_font_face_get_weight as ^ { `FontFace' } -> `FontWeight'#}
-#endif -- CAIRO_CHECK_VERSION(1,8,0)
+{#fun toy_font_face_get_weight as ^ { `FontFace' } -> `FontWeight'#} -- λ require CAIRO_CHECK_VERSION(1,8,0)

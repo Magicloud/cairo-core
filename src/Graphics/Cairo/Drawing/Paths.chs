@@ -47,19 +47,12 @@ import Foreign.Storable
 {#fun rel_move_to as ^ { `Context', CDouble `X', CDouble `Y' } -> `()'#}
 
 -- λ https://www.cairographics.org/manual/cairo-Paths.html#cairo-glyph-path
-glyphPath :: Context -> [Glyph] -> IO ()
-glyphPath context glyphs =
-  withArrayLen glyphs $ \len ptr -> glyphPath' context ptr len
-  where {#fun glyph_path as glyphPath' { `Context', `GlyphPtr', `Int' } -> `()'#}
+{#fun glyph_path as ^ { `Context', withArrayLen_* `[Glyph]'& } -> `()'#}
 
-#if CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-Paths.html#cairo-new-sub-path
-{#fun new_sub_path as ^ { `Context' } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,2,0)
+{#fun new_sub_path as ^ { `Context' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 
-#if CAIRO_CHECK_VERSION(1,6,0)
 -- λ https://www.cairographics.org/manual/cairo-Paths.html#cairo-has-current-point
-{#fun has_current_point as ^ { `Context' } -> `Bool'#}
+{#fun has_current_point as ^ { `Context' } -> `Bool'#} -- λ require CAIRO_CHECK_VERSION(1,6,0)
 -- λ https://www.cairographics.org/manual/cairo-Paths.html#cairo-path-extents
-{#fun path_extents as ^ { `Context', alloca- `X' peekDouble*, alloca- `Y' peekDouble*, alloca- `X' peekDouble*, alloca- `Y' peekDouble* } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,6,0)
+{#fun path_extents as ^ { `Context', alloca- `X' peekDouble*, alloca- `Y' peekDouble*, alloca- `X' peekDouble*, alloca- `Y' peekDouble* } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,6,0)

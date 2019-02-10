@@ -18,39 +18,43 @@ import           Graphics.Cairo.Utilities.ErrorHandling
 #if CAIRO_CHECK_VERSION(1,10,0)
 instance HasStatus Device where
   status = deviceStatus
+#endif
 
 -- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-status
-{#fun device_status as ^ { `Device' } -> `Status'#}
+{#fun device_status as ^ { `Device' } -> `Status'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-finish
-{#fun device_finish as ^ { `Device' } -> `()'#}
+{#fun device_finish as ^ { `Device' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-flush
-{#fun device_flush as ^ { `Device' } -> `()'#}
+{#fun device_flush as ^ { `Device' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-get-type
-{#fun device_get_type as ^ { `Device' } -> `DeviceType'#}
+{#fun device_get_type as ^ { `Device' } -> `DeviceType'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-get-reference-count
-{#fun device_get_reference_count as ^ { `Device' } -> `Int'#}
+{#fun device_get_reference_count as ^ { `Device' } -> `Int'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-elapsed
+{#fun device_observer_elapsed as ^ { `Device' } -> `Double'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-fill-elapsed
+{#fun device_observer_fill_elapsed as ^ { `Device' } -> `Double'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-glyphs-elapsed
+{#fun device_observer_glyphs_elapsed as ^ { `Device' } -> `Double'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-mask-elapsed
+{#fun device_observer_mask_elapsed as ^ { `Device' } -> `Double'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-paint-elapsed
+{#fun device_observer_paint_elapsed as ^ { `Device' } -> `Double'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
+-- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-stroke-elapsed
+{#fun device_observer_stroke_elapsed as ^ { `Device' } -> `Double'#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 
 {-|
 λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-acquire
 λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-release
 -}
+#if CAIRO_CHECK_VERSION(1,10,0)
 acquireDevice :: Device -> (Device -> IO c) -> IO c
 acquireDevice d f =
   bracket (deviceAcquire d) (const (deviceRelease d) <=< failStatus) (const $ f d)
   where
     {#fun device_acquire as ^ { `Device' } -> `Status'#}
     {#fun device_release as ^ { `Device' } -> `()'#}
-
--- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-elapsed
-{#fun device_observer_elapsed as ^ { `Device' } -> `Double'#}
--- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-fill-elapsed
-{#fun device_observer_fill_elapsed as ^ { `Device' } -> `Double'#}
--- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-glyphs-elapsed
-{#fun device_observer_glyphs_elapsed as ^ { `Device' } -> `Double'#}
--- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-mask-elapsed
-{#fun device_observer_mask_elapsed as ^ { `Device' } -> `Double'#}
--- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-paint-elapsed
-{#fun device_observer_paint_elapsed as ^ { `Device' } -> `Double'#}
--- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-observer-stroke-elapsed
-{#fun device_observer_stroke_elapsed as ^ { `Device' } -> `Double'#}
-#endif -- CAIRO_CHECK_VERSION(1,10,0)
+#else
+{-# WARNING acquireDevice "CAIRO_CHECK_VERSION(1,10,0) unmet" #-}
+acquireDevice = undefined
+#endif

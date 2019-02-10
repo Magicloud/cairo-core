@@ -1,7 +1,7 @@
 name:                cairo-core
-version:             1.16.5
-synopsis:            Cairo Haskell binding (core functions)
-description:         Cairo Haskell binding (core functions). Please checkout cairo-opts for other functions.
+version:             1.16.6
+synopsis:            Cairo Haskell binding (partial)
+description:         For using Cairo in Haskell. Functions/Types for X11, Windows, MacOS are not included.
 homepage:            https://github.com/magicloud/cairo-core#readme
 license:             BSD3
 license-file:        LICENSE
@@ -45,6 +45,13 @@ library
                        Graphics.Cairo.Drawing.Patterns
                        Graphics.Cairo.Drawing.Paths
                        Graphics.Cairo.Drawing.Cairo
+                       Graphics.Cairo.Surfaces.PostScript
+                       Graphics.Cairo.Surfaces.PNG
+                       Graphics.Cairo.Surfaces.PDF
+                       Graphics.Cairo.Surfaces.Image
+                       Graphics.Cairo.Surfaces.Recording
+                       Graphics.Cairo.Surfaces.Script
+                       Graphics.Cairo.Surfaces.SVG
                        Graphics.Cairo.Render
   build-depends:       base >= 4.7 && < 5
                      , monad-extras

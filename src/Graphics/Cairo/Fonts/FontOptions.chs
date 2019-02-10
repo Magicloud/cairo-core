@@ -43,9 +43,7 @@ instance HasStatus FontOptions where
 -- λ https://www.cairographics.org/manual/cairo-cairo-font-options-t.html#cairo-font-options-get-hint-metrics
 {#fun font_options_get_hint_metrics as ^ { `FontOptions' } -> `HintMetrics'#}
 
-#if CAIRO_CHECK_VERSION(1,16,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-font-options-t.html#cairo-font-options-get-variations
-{#fun font_options_get_variations as ^ { `FontOptions' } -> `String'#}
+{#fun font_options_get_variations as ^ { `FontOptions' } -> `String'#} -- λ require CAIRO_CHECK_VERSION(1,16,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-font-options-t.html#cairo-font-options-set-variations
-{#fun font_options_set_variations as ^ { `FontOptions', `String' } -> `()'#}
-#endif -- CAIRO_CHECK_VERSION(1,16,0)
+{#fun font_options_set_variations as ^ { `FontOptions', `String' } -> `()'#} -- λ require CAIRO_CHECK_VERSION(1,16,0)

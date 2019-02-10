@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 import           Control.Exception
+import           Control.Monad
 import qualified Data.ByteString.Lazy as LBS
 import           Data.Char
 import           Data.List
@@ -31,6 +32,7 @@ main = defaultMainWithHooks simpleUserHooks
   { hookedPreProcessors = [ ("chs", \bi lbi clbi ->
     PreProcessor False $ \(iD, iF) (oD, oF) verbosity -> do
       catch (do
+        require (iD </> iF) (oD </> iF)
         (runPreProcessor $ ppC2hs bi lbi clbi) (iD, iF) (oD, oF) verbosity
         rmLINE (oD </> oF)
         bindingDoc (oD </> oF)
@@ -44,6 +46,33 @@ main = defaultMainWithHooks simpleUserHooks
       copyFile (iD </> iF) (oD </> oF)
       bindingDoc (oD </> oF)
       render bi oD (oD </> oF))]}
+
+require :: FilePath -> FilePath -> IO ()
+require fp target = do
+  readFile fp >>=
+    writeFile (fp ++ ".fuck") .unlines . map (\line -> if " -- λ require " `isInfixOf` line
+      then
+        let (code, conds') = splitAt (fromJust (position "-- λ" line) - 1) line
+            conds = words $ drop (length "-- λ require ") conds'
+            name' = words code !! 3
+            name'' = if name' == "^"
+              then c2hsName $ words code !! 1
+              else name'
+            name = if "{#fun " `isPrefixOf` code
+              then unCapital name''
+              else name''
+            argc = length $ breakOn ',' $ takeWhile ('}' /=) $ dropWhile ('{' /=) code
+        in foldl (\i (ob, oa) -> intercalate "\n" [ob, i, oa]) code $ map (\cond -> ("#if " ++ cond, intercalate "\n"
+          [ "#else"
+          , "{-# WARNING " ++ name ++ " \"" ++ cond ++ " unmet\" #-}"
+          , if "{#enum " `isPrefixOf` code
+              then "data " ++ name
+              else if "{#fun " `isPrefixOf` code
+              then name ++ " " ++ intercalate " " (map ((:) 'v' . show) [1..argc]) ++ " = undefined"
+              else error code
+          , "#endif" ])) conds
+      else line) . lines
+  renameFile (fp ++ ".fuck") target
 
 rmLINE :: FilePath -> IO ()
 rmLINE fp = do
@@ -503,3 +532,25 @@ declComments (AnnPragma (_, c) _) = c
 declComments (MinimalPragma (_, c) _) = c
 declComments (RoleAnnotDecl (_, c) _ _) = c
 declComments (CompletePragma (_, c) _ _) = c
+
+position :: (Eq a) => [a] -> [a] -> Maybe Int
+position sub ful =
+  case filter (sub `isPrefixOf`) $ ful : tails ful of
+    [] -> Nothing
+    i : _ -> Just (length ful - length i)
+
+breakOn :: (Eq a) => a -> [a] -> [[a]]
+breakOn x = unfoldr (\xs -> case break (x ==) xs of
+  ([], _ : _) -> Just (tail xs, [])
+  (_ : _, []) -> Just (xs, [])
+  ([], []) -> Nothing
+  (xs1, xs2) -> Just (xs1, tail xs2))
+
+c2hsName :: String -> String
+c2hsName =
+  concatMap (\(c : s) ->
+    toUpper c : s) . breakOn '_'
+
+unCapital :: String -> String
+unCapital (c : s) = toLower c : s
+unCapital [] = []

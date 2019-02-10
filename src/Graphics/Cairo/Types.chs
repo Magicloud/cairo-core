@@ -2,6 +2,10 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 #include "cairo-core.h"
+#include <cairo-ps.h>
+#include <cairo-pdf.h>
+#include <cairo-svg.h>
+#include <cairo-script.h>
 
 module Graphics.Cairo.Types where
 
@@ -86,6 +90,18 @@ type GradientPattern = Pattern
 type LinearGradientPattern = GradientPattern
 type RadialGradientPattern = GradientPattern
 type Mesh = Pattern
+type Stride = Int
+type OutlineId = Int
+type WidthPoints = Double
+type HeightPoints = Double
+type ImageSurface = Surface
+type PdfSurface = Surface
+type PngSurface = Surface
+type PsSurface = Surface
+type RecordingSurface = Surface
+type SvgSurface = Surface
+type ScriptDevice = Device
+type ScriptSurface = Surface
 
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-t
 {#pointer *t as Context foreign finalizer destroy newtype#}
@@ -356,11 +372,11 @@ instance Storable TextExtents where
     {#set text_extents_t->x_advance#} p (CDouble xa)
     {#set text_extents_t->y_advance#} p (CDouble ya)
 
-#if CAIRO_CHECK_VERSION(1,4,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-rectangle-list-t
 data RectangleList a = RectangleList { rlStatus     :: Status
                                      , rlRectangles :: [Rectangle a] }
                      deriving (Show, Eq)
+#if CAIRO_CHECK_VERSION(1,4,0)
 {#pointer *rectangle_list_t as RectangleListPtr -> RectangleList Double#}
 instance Storable (RectangleList Double) where
   sizeOf _ = {#sizeof rectangle_list_t#}
@@ -376,10 +392,12 @@ instance Storable (RectangleList Double) where
       {#set rectangle_list_t->status#}         p (fromIntegral $ fromEnum s)
       {#set rectangle_list_t->rectangles#}     p ptr'
       {#set rectangle_list_t->num_rectangles#} p (fromIntegral len)
-#endif -- CAIRO_CHECK_VERSION(1,4,0)
+#else
+{-# WARNING RectangleList Double "CAIRO_CHECK_VERSION(1,4,0) unmet" #-}
+#endif
 
-#if CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://www.cairographics.org/manual/cairo-text.html#cairo-text-cluster-t
+#if CAIRO_CHECK_VERSION(1,8,0)
 data TextCluster = TextCluster { textClusterNumBytes  :: Int
                                , textClusterNumGlyphs :: Int }
                  deriving (Show, Eq)
@@ -394,10 +412,13 @@ instance Storable TextCluster where
   poke p (TextCluster b g)= do
     {#set text_cluster_t->num_bytes#}  p (fromIntegral b)
     {#set text_cluster_t->num_glyphs#} p (fromIntegral g)
-#endif -- CAIRO_CHECK_VERSION(1,8,0)
+#else
+{-# WARNING TextCluster "CAIRO_CHECK_VERSION(1,8,0) unmet" #-}
+data TextCluster
+#endif
 
-#if CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-t
+#if CAIRO_CHECK_VERSION(1,10,0)
 {#pointer *device_t as Device foreign finalizer device_destroy newtype#}
 outDevice :: Ptr Device -> IO Device
 outDevice = fmap Device . newForeignPtr cairo_device_destroy
@@ -405,13 +426,21 @@ outMaybeDevice :: Ptr Device -> IO (Maybe Device)
 outMaybeDevice p = if p == nullPtr
   then return Nothing
   else Just <$> outDevice p
-
+#else
+{-# WARNING Device "CAIRO_CHECK_VERSION(1,10,0) unmet" #-}
+data Device
+#endif
 -- λ https://www.cairographics.org/manual/cairo-Regions.html#cairo-region-t
+#if CAIRO_CHECK_VERSION(1,10,0)
 {#pointer *region_t as Region foreign finalizer region_destroy newtype#}
 outRegion :: Ptr Region -> IO Region
 outRegion = fmap Region . newForeignPtr cairo_region_destroy
-
+#else
+{-# WARNING Region "CAIRO_CHECK_VERSION(1,10,0) unmet" #-}
+data Region
+#endif
 -- λ https://www.cairographics.org/manual/cairo-Types.html#cairo-rectangle-int-t
+#if CAIRO_CHECK_VERSION(1,10,0)
 {#pointer *rectangle_int_t as RectangleIntPtr -> Rectangle Int#}
 instance Storable (Rectangle Int) where
   sizeOf _ = {#sizeof rectangle_int_t#}
@@ -430,7 +459,9 @@ instance Storable (Rectangle Int) where
     {#set rectangle_int_t->y#}      p (fromIntegral y)
     {#set rectangle_int_t->width#}  p (fromIntegral w)
     {#set rectangle_int_t->height#} p (fromIntegral h)
-#endif -- CAIRO_CHECK_VERSION(1,10,0)
+#else
+{-# WARNING Rectangle Int "CAIRO_CHECK_VERSION(1,10,0) unmet" #-}
+#endif
 
 -- λ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-antialias-t
 {#enum antialias_t as Antialias {underscoreToCase} deriving(Eq, Show)#}
@@ -465,26 +496,20 @@ instance Storable (Rectangle Int) where
 -- λ https://www.cairographics.org/manual/cairo-Error-handling.html#cairo-status-t
 {#enum status_t as Status {underscoreToCase} deriving(Eq, Show)#}
 
-#if CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-font-face-t.html#cairo-font-type-t
-{#enum font_type_t as FontType {underscoreToCase} deriving(Eq, Show)#}
+{#enum font_type_t as FontType {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-pattern-t.html#cairo-pattern-type-t
-{#enum pattern_type_t as PatternType {underscoreToCase} deriving(Eq, Show)#}
+{#enum pattern_type_t as PatternType {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 -- λ https://cairographics.org/manual/cairo-cairo-surface-t.html#cairo-surface-type-t
-{#enum surface_type_t as SurfaceType {underscoreToCase} deriving(Eq, Show)#}
-#endif -- CAIRO_CHECK_VERSION(1,2,0)
+{#enum surface_type_t as SurfaceType {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_CHECK_VERSION(1,2,0)
 
-#if CAIRO_CHECK_VERSION(1,8,0)
 -- λ https://cairographics.org/manual/cairo-text.html#cairo-text-cluster-flags-t
-{#enum text_cluster_flags_t as TextClusterFlags {underscoreToCase} deriving(Eq, Show)#}
-#endif -- CAIRO_CHECK_VERSION(1,8,0)
+{#enum text_cluster_flags_t as TextClusterFlags {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_CHECK_VERSION(1,8,0)
 
-#if CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-type-t
-{#enum device_type_t as DeviceType {underscoreToCase} deriving(Eq, Show)#}
+{#enum device_type_t as DeviceType {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 -- λ https://www.cairographics.org/manual/cairo-Regions.html#cairo-region-overlap-t
-{#enum region_overlap_t as RegionOverlap {underscoreToCase} deriving(Eq, Show)#}
-#endif -- CAIRO_CHECK_VERSION(1,10,0)
+{#enum region_overlap_t as RegionOverlap {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_CHECK_VERSION(1,10,0)
 
 #if CAIRO_CHECK_VERSION(1,12,0)
 data MeshPointNum = MP0
@@ -497,7 +522,22 @@ data MeshCornerNum = MC0
                    | MC2
                    | MC3
                    deriving (Show, Eq, Enum)
-#endif -- CAIRO_CHECK_VERSION(1,12,0)
+#endif
+
+-- λ https://www.cairographics.org/manual/cairo-PDF-Surfaces.html#cairo-pdf-outline-flags-t
+{#enum pdf_outline_flags_t as PdfOutlineFlags {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_HAS_PDF_SURFACE CAIRO_CHECK_VERSION(1,16,0)
+-- λ https://www.cairographics.org/manual/cairo-PDF-Surfaces.html#cairo-pdf-metadata-t
+{#enum pdf_metadata_t as PdfMetadata {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_HAS_PDF_SURFACE CAIRO_CHECK_VERSION(1,16,0)
+-- λ https://www.cairographics.org/manual/cairo-PDF-Surfaces.html#cairo-pdf-version-t
+{#enum pdf_version_t as PdfVersion {underscoreToCase} deriving(Bounded, Eq, Show)#} -- λ require CAIRO_HAS_PDF_SURFACE CAIRO_CHECK_VERSION(1,10,0)
+-- λ https://www.cairographics.org/manual/cairo-PostScript-Surfaces.html#cairo-ps-level-t
+{#enum ps_level_t as PsLevel {underscoreToCase} deriving(Bounded, Eq, Show)#} -- λ require CAIRO_HAS_PS_SURFACE CAIRO_CHECK_VERSION(1,6,0)
+-- λ https://www.cairographics.org/manual/cairo-SVG-Surfaces.html#cairo-svg-version-t
+{#enum svg_version_t as SvgVersion {underscoreToCase} deriving(Bounded, Eq, Show)#} -- λ require CAIRO_HAS_SVG_SURFACE CAIRO_CHECK_VERSION(1,2,0)
+-- λ https://www.cairographics.org/manual/cairo-SVG-Surfaces.html#cairo-svg-unit-t
+{#enum svg_unit_t as SvgUnit {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_HAS_SVG_SURFACE CAIRO_CHECK_VERSION(1,16,0)
+-- λ https://www.cairographics.org/manual/cairo-Script-Surfaces.html#cairo-script-mode-t
+{#enum script_mode_t as ScriptMode {underscoreToCase} deriving(Eq, Show)#} -- λ require CAIRO_HAS_SCRIPT_SURFACE CAIRO_CHECK_VERSION(1,12,0)
 
 -- Marshallers
 
@@ -523,6 +563,9 @@ withMaybe :: Storable a => Maybe a -> (Ptr a -> IO b) -> IO b
 withMaybe m f = case m of
   Nothing -> f nullPtr
   Just p -> with p f
+
+withArrayLen_ :: Storable a => [a] -> ((Ptr a, CInt) -> IO b) -> IO b
+withArrayLen_ xs f = withArrayLen xs $ \i p -> f (p, fromIntegral i)
 
 -- Referencer
 
