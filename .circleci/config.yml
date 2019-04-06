@@ -1,0 +1,14 @@
+version: 2
+jobs:
+  build:
+    docker:
+        - image: ubuntu:bionic
+
+    steps:
+      - checkout
+      - run:
+          name: Prepare
+          command: apt update && apt full-upgrade -y && apt install libcairo2-dev haskell-stack locales -y && stack upgrade && locale-gen en_US.UTF-8
+      - run:
+          name: Build
+          command: LC_ALL=en_US.UTF-8 /root/.local/bin/stack build --fast
