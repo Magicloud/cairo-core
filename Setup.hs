@@ -2,7 +2,6 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 import           Control.Exception
-import           Control.Monad
 import qualified Data.ByteString.Lazy as LBS
 import           Data.Char
 import           Data.List
@@ -33,7 +32,7 @@ main = defaultMainWithHooks simpleUserHooks
     PreProcessor False $ \(iD, iF) (oD, oF) verbosity -> do
       catch (do
         require (iD </> iF) (oD </> iF)
-        (runPreProcessor $ ppC2hs bi lbi clbi) (iD, iF) (oD, oF) verbosity
+        (runPreProcessor $ ppC2hs bi lbi clbi) (oD, iF) (oD, oF) verbosity
         rmLINE (oD </> oF)
         bindingDoc (oD </> oF)
         c2hsWrapper bi (oD </> oF)) (\(e :: SomeException) -> do
@@ -68,7 +67,9 @@ require fp target = do
           , if "{#enum " `isPrefixOf` code
               then "data " ++ name
               else if "{#fun " `isPrefixOf` code
-              then name ++ " " ++ intercalate " " (map ((:) 'v' . show) [1..argc]) ++ " = undefined"
+              then intercalate "\n"
+                [ name ++ " :: " ++ intercalate " -> " (map ((:) 't' . show) [1 .. argc + 1])
+                , name ++ " " ++ intercalate " " (replicate argc "_") ++ " = undefined" ]
               else error code
           , "#endif" ])) conds
       else line) . lines

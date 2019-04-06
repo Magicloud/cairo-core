@@ -7,7 +7,8 @@ Description : λ https://www.cairographics.org/manual/cairo-cairo-font-options-t
 module Graphics.Cairo.Fonts.FontOptions where
 
 {#import Graphics.Cairo.Types#}
-import Graphics.Cairo.HasStatus
+import qualified Foreign.Ptr as C2HSImp
+import           Graphics.Cairo.HasStatus
 
 {#context lib="cairo" prefix="cairo"#}
 
