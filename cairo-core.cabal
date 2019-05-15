@@ -1,5 +1,5 @@
 name:                cairo-core
-version:             1.16.7
+version:             1.17.0
 synopsis:            Cairo Haskell binding (partial)
 description:         For using Cairo in Haskell. Functions/Types for X11, Windows, MacOS are not included.
 homepage:            https://github.com/magicloud/cairo-core#readme
